@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文章搜索</title>
+    <style>
+        :root {
+            --bg: #f5f5f5;
+            --card: #ffffff;
+            --text: #333333;
+            --sub: #888888;
+            --border: #e0e0e0;
+            --accent: #333333;
+            --accent-text: #ffffff;
+        }
+
+        [data-theme="dark"] {
+            --bg: #1a1a1a;
+            --card: #2a2a2a;
+            --text: #e0e0e0;
+            --sub: #999999;
+            --border: #3a3a3a;
+            --accent: #e0e0e0;
+            --accent-text: #1a1a1a;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 16px;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .header h2 {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .theme-toggle,
+        .sort-toggle {
+            background: none;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            color: var(--text);
+        }
+
+        .search-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        #searchInput {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 1rem;
+            background: var(--card);
+            color: var(--text);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        #searchInput:focus {
+            border-color: var(--text);
+        }
+
+        #searchBtn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            background: var(--accent);
+            color: var(--accent-text);
+            font-size: 1rem;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: opacity 0.2s;
+        }
+
+        #searchBtn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            font-size: 0.85rem;
+            color: var(--sub);
+            margin-bottom: 8px;
+        }
+
+        #result {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .count {
+            font-size: 0.85rem;
+            color: var(--sub);
+            margin-bottom: 8px;
+        }
+
+        .file-item {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .file-header {
+            padding: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            user-select: none;
+        }
+
+        .file-header:hover {
+            background: rgba(0,0,0,0.03);
+        }
+
+        [data-theme="dark"] .file-header:hover {
+            background: rgba(255,255,255,0.03);
+        }
+
+        .file-header .name {
+            font-size: 0.95rem;
+        }
+
+        .file-header .arrow {
+            font-size: 0.8rem;
+            color: var(--sub);
+            transition: transform 0.2s;
+        }
+
+        .file-header.open .arrow {
+            transform: rotate(90deg);
+        }
+
+        .file-content {
+            display: none;
+            padding: 0 14px 14px;
+            border-top: 1px solid var(--border);
+        }
+
+        .file-content.show {
+            display: block;
+        }
+
+        .file-content pre {
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            word-break: break-all;
+            margin-top: 12px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 10px;
+            padding: 6px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--card);
+            color: var(--text);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .download-btn:hover {
+            background: var(--accent);
+            color: var(--accent-text);
+        }
+
+        .loading-text {
+            color: var(--sub);
+            font-size: 0.85rem;
+            padding: 12px 0;
+        }
+
+        .empty {
+            text-align: center;
+            color: var(--sub);
+            padding: 40px 0;
+            font-size: 0.95rem;
+        }
+
+        .preview-hint {
+            font-size: 0.8rem;
+            color: var(--sub);
+            margin-top: 6px;
+        }
+
+        .action-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 480px) {
+            body { padding: 12px; }
+            .search-row { flex-direction: column; }
+            #searchBtn { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>TXT搜索</h2>
+            <div class="header-actions">
+                <button class="sort-toggle" onclick="toggleSort()" id="sortBtn">按添加顺序</button>
+                <button class="theme-toggle" onclick="toggleTheme()">☀️</button>
+            </div>
+        </div>
+        
+        <div class="search-row">
+            <input type="text" id="searchInput" placeholder="输入关键词搜索文件名…" onkeydown="if(event.key==='Enter')searchFiles()">
+            <button id="searchBtn" onclick="searchFiles()">搜索</button>
+        </div>
+        
+        <div class="loading" id="loading"></div>
+        <div class="count" id="count"></div>
+        <div id="result">
+            <div class="empty">正在加载文件列表…</div>
+        </div>
+    </div>
+    
+    <script>
+        // ===== 数据 =====
+        let fileList = [];        // 只存文件名 [{name}]
+        let contentCache = {};    // 已读内容缓存 {name: content}
+        let isSearching = false;
+        let searchTimer = null;
+        let sortMode = 'order';   // 'order' | 'alpha'
+
+        // ===== 主题 =====
+        document.documentElement.setAttribute('data-theme', 'dark');
+        const themeBtn = document.querySelector('.theme-toggle');
+
+        function getChineseSortKey(name) {
+            const base = name.replace(/\.txt$/i, '');
+            const match = base.match(/[\u4e00-\u9fa5].*/);
+            return match ? match[0] : base;
+        }
+        
+        function toggleTheme() {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            if (isDark) {
+                document.documentElement.removeAttribute('data-theme');
+                themeBtn.textContent = '🌙';
+            } else {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                themeBtn.textContent = '☀️';
+            }
+        }
+
+        // ===== 排序切换 =====
+        function toggleSort() {
+            sortMode = sortMode === 'order' ? 'alpha' : 'order';
+            document.getElementById('sortBtn').textContent =
+                sortMode === 'order' ? '按添加顺序' : '按首字母';
+
+            // 重新渲染当前结果
+            const kw = document.getElementById('searchInput').value.trim().toLowerCase();
+            renderFiles(kw || null);
+        }
+
+        // ===== 初始化：只加载文件名列表 =====
+        async function init() {
+            const loadingDom = document.getElementById('loading');
+            const resultDom = document.getElementById('result');
+
+            try {
+                loadingDom.textContent = '正在读取文件列表…';
+
+                const listResp = await fetch('./files.txt');
+                if (!listResp.ok) throw new Error('files.txt 不存在');
+                const listText = await listResp.text();
+                const fileNames = listText.split('\n')
+                    .map(s => s.trim())
+                    .filter(s => s && s.endsWith('.txt'));
+
+                fileList = fileNames.map(name => ({ name }));
+
+                loadingDom.textContent = '';
+                renderFiles(null);
+            } catch (e) {
+                loadingDom.textContent = '';
+                resultDom.innerHTML = '<div class="empty">初始化失败，请确认 files.txt 存在</div>';
+                console.error(e);
+            }
+        }
+
+        // ===== 按需加载单个文件内容 =====
+        async function loadContent(fileName) {
+            if (contentCache[fileName]) {
+                return contentCache[fileName];
+            }
+            const resp = await fetch('./' + fileName);
+            if (!resp.ok) throw new Error('读取失败');
+            const content = await resp.text();
+            contentCache[fileName] = content;
+            return content;
+        }
+
+        // ===== 渲染文件列表 =====
+        function renderFiles(filterKw) {
+            const resultDom = document.getElementById('result');
+            const countDom = document.getElementById('count');
+
+            resultDom.innerHTML = '';
+            countDom.textContent = '';
+
+            // 排序
+            let displayList = [...fileList];
+            if (sortMode === 'alpha') {
+                displayList.sort((a, b) =>
+                    getChineseSortKey(a.name).localeCompare(getChineseSortKey(b.name), 'zh-CN')
+                );
+            }
+
+            let found = 0;
+
+            for (const file of displayList) {
+                if (!filterKw || file.name.toLowerCase().includes(filterKw)) {
+                    found++;
+                    const id = 'file-' + found;
+                    const safeName = escapeHtml(file.name);
+
+                    resultDom.innerHTML += `
+                        <div class="file-item">
+                            <div class="file-header" onclick="toggleContent('${id}', '${file.name.replace(/'/g, "\\'")}')">
+                                <span class="name">📄 ${safeName}</span>
+                                <span class="arrow">▶</span>
+                            </div>
+                            <div class="file-content" id="${id}">
+                                <div class="loading-text">点击加载预览…</div>
+                                <div class="action-row">
+                                    <button class="download-btn" onclick="downloadFileDirect('${file.name.replace(/'/g, "\\'")}', event)">
+                                        ⬇️ 下载文件
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            if (filterKw) {
+                countDom.textContent = found > 0 ? `找到 ${found} 个文件` : '没有匹配结果';
+                if (found === 0) {
+                    resultDom.innerHTML = '<div class="empty">没有匹配结果</div>';
+                }
+            } else {
+                countDom.textContent = `共 ${found} 个文件`;
+            }
+        }
+
+        // ===== 点击展开：加载预览内容，只显示前200字 =====
+        async function toggleContent(id, fileName) {
+            const content = document.getElementById(id);
+            const header = content.parentElement.querySelector('.file-header');
+
+            if (content.classList.contains('show')) {
+                content.classList.remove('show');
+                header.classList.remove('open');
+                return;
+            }
+
+            content.classList.add('show');
+            header.classList.add('open');
+
+            if (!contentCache[fileName]) {
+                const previewArea = content.querySelector('.loading-text');
+                previewArea.textContent = '⏳ 加载预览中…';
+                try {
+                    const text = await loadContent(fileName);
+                    const maxLen = 200;
+                    const isLong = text.length > maxLen;
+                    const preview = isLong ? text.slice(0, maxLen) + '…' : text;
+
+                    const pre = document.createElement('pre');
+                    pre.textContent = preview;
+                    previewArea.replaceWith(pre);
+
+                    if (isLong) {
+                        const hint = document.createElement('div');
+                        hint.className = 'preview-hint';
+                        hint.textContent = `仅显示前 ${maxLen} 字，下载查看全文（共 ${text.length} 字）`;
+                        content.insertBefore(hint, content.querySelector('.action-row'));
+                    }
+                } catch (e) {
+                    previewArea.textContent = '❌ 预览加载失败，请直接下载文件';
+                }
+            }
+        }
+
+        // ===== 直接下载 =====
+        function downloadFileDirect(fileName, event) {
+            event.stopPropagation();
+
+            if (contentCache[fileName]) {
+                const blob = new Blob([contentCache[fileName]], { type: 'text/plain;charset=utf-8' });
+                triggerDownload(blob, fileName);
+                return;
+            }
+
+            const a = document.createElement('a');
+            a.href = './' + fileName;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function triggerDownload(blob, fileName) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // ===== 搜索 =====
+        function searchFiles() {
+            const btn = document.getElementById('searchBtn');
+            const input = document.getElementById('searchInput');
+
+            if (isSearching) return;
+
+            const kw = input.value.trim().toLowerCase();
+
+            if (searchTimer) clearTimeout(searchTimer);
+
+            if (!kw) {
+                renderFiles(null);
+                return;
+            }
+
+            btn.disabled = true;
+            isSearching = true;
+            btn.textContent = '搜索中…';
+
+            searchTimer = setTimeout(() => {
+                renderFiles(kw);
+
+                isSearching = false;
+                btn.disabled = false;
+                btn.textContent = '搜索';
+            }, 300);
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        init();
+    </script>
+</body>
+</html>
