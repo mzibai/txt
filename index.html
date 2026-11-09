@@ -60,7 +60,8 @@
         }
 
         .theme-toggle,
-        .sort-toggle {
+        .sort-toggle,
+        .reverse-toggle {
             background: none;
             border: 1px solid var(--border);
             border-radius: 20px;
@@ -68,6 +69,11 @@
             font-size: 0.85rem;
             cursor: pointer;
             color: var(--text);
+        }
+
+        .reverse-toggle.active {
+            background: var(--accent);
+            color: var(--accent-text);
         }
 
         .search-row {
@@ -243,6 +249,7 @@
             <h2>TXT搜索</h2>
             <div class="header-actions">
                 <button class="sort-toggle" onclick="toggleSort()" id="sortBtn">按添加顺序</button>
+                <button class="reverse-toggle" onclick="toggleReverse()" id="reverseBtn">倒序</button>
                 <button class="theme-toggle" onclick="toggleTheme()">☀️</button>
             </div>
         </div>
@@ -266,6 +273,7 @@
         let isSearching = false;
         let searchTimer = null;
         let sortMode = 'order';   // 'order' | 'alpha'
+        let reverseMode = false;  // 是否倒序
 
         // ===== 主题 =====
         document.documentElement.setAttribute('data-theme', 'dark');
@@ -294,12 +302,27 @@
             document.getElementById('sortBtn').textContent =
                 sortMode === 'order' ? '按添加顺序' : '按首字母';
 
-            // 重新渲染当前结果
             const kw = document.getElementById('searchInput').value.trim().toLowerCase();
             renderFiles(kw || null);
         }
 
-        // ===== 初始化：只加载文件名列表 =====
+        // ===== 倒序切换 =====
+        function toggleReverse() {
+            reverseMode = !reverseMode;
+            const btn = document.getElementById('reverseBtn');
+            if (reverseMode) {
+                btn.classList.add('active');
+                btn.textContent = '正序';
+            } else {
+                btn.classList.remove('active');
+                btn.textContent = '倒序';
+            }
+
+            const kw = document.getElementById('searchInput').value.trim().toLowerCase();
+            renderFiles(kw || null);
+        }
+
+        // ===== 初始化 =====
         async function init() {
             const loadingDom = document.getElementById('loading');
             const resultDom = document.getElementById('result');
@@ -325,7 +348,7 @@
             }
         }
 
-        // ===== 按需加载单个文件内容 =====
+        // ===== 按需加载内容 =====
         async function loadContent(fileName) {
             if (contentCache[fileName]) {
                 return contentCache[fileName];
@@ -345,12 +368,20 @@
             resultDom.innerHTML = '';
             countDom.textContent = '';
 
-            // 排序
             let displayList = [...fileList];
+
+            // 排序
             if (sortMode === 'alpha') {
-                displayList.sort((a, b) =>
-                    getChineseSortKey(a.name).localeCompare(getChineseSortKey(b.name), 'zh-CN')
-                );
+                displayList.sort((a, b) => {
+                    const cmp = getChineseSortKey(a.name)
+                        .localeCompare(getChineseSortKey(b.name), 'zh-CN');
+                    return reverseMode ? -cmp : cmp;
+                });
+            } else {
+                // 按添加顺序
+                if (reverseMode) {
+                    displayList.reverse();
+                }
             }
 
             let found = 0;
@@ -390,7 +421,7 @@
             }
         }
 
-        // ===== 点击展开：加载预览内容，只显示前200字 =====
+        // ===== 展开内容 =====
         async function toggleContent(id, fileName) {
             const content = document.getElementById(id);
             const header = content.parentElement.querySelector('.file-header');
@@ -429,7 +460,7 @@
             }
         }
 
-        // ===== 直接下载 =====
+        // ===== 下载 =====
         function downloadFileDirect(fileName, event) {
             event.stopPropagation();
 
